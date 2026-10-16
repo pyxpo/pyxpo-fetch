@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "nativeContract": 1,
+  "name": "fetch",
+  "native": "Fetch",
+  "ios": {
+    "classes": ["FetchModule"]
+  },
+  "android": {
+    "namespace": "dev.pyxpo.modules.fetch",
+    "classes": ["dev.pyxpo.modules.fetch.FetchModule"],
+    "dependencies": ["com.squareup.okhttp3:okhttp:4.12.0"],
+    "minSdk": 24
+  }
+}

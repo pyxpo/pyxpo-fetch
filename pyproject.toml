@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyxpo-fetch"
+dynamic = ["version"]
+description = "Streaming HTTP requests with native networking: the expo/fetch API for pyxpo."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Vishal Chaubey" }]
+keywords = ["pyxpo", "pyxpo-module", "mobile", "android", "ios"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: User Interfaces",
+]
+requires-python = ">=3.9"
+dependencies = ["pyxpo>=0.1.0a1,<0.2"]
+
+[project.urls]
+Homepage = "https://github.com/pyxpo/pyxpo/tree/main/packages/fetch"
+Issues = "https://github.com/pyxpo/pyxpo/issues"
+
+# How `pyxpo build` finds this module: the entry point name is the module name apps list in
+# `[tool.pyxpo] modules`, its value the import package holding pyxpo-module.json.
+[project.entry-points."pyxpo.modules"]
+fetch = "pyxpo_fetch"
+
+[tool.setuptools]
+packages = ["pyxpo_fetch"]
+
+[tool.setuptools.dynamic]
+version = { attr = "pyxpo_fetch.__version__" }
+
+[tool.setuptools.package-data]
+pyxpo_fetch = ["pyxpo-module.json", "py.typed", "ios/**/*", "android/**/*"]
+
+[tool.setuptools.exclude-package-data]
+"*" = ["__pycache__", "*.pyc", ".DS_Store"]
