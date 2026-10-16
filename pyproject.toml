@@ -18,7 +18,7 @@ classifiers = [
     "Topic :: Software Development :: User Interfaces",
 ]
 requires-python = ">=3.9"
-dependencies = ["pyxpo>=0.1.0a1,<0.2"]
+dependencies = ["pyxpo>=0.1.0a2,<0.2"]
 
 [project.urls]
 Homepage = "https://github.com/pyxpo/pyxpo/tree/main/packages/fetch"
