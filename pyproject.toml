@@ -10,18 +10,31 @@ readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "Vishal Chaubey" }]
-keywords = ["pyxpo", "pyxpo-module", "mobile", "android", "ios"]
+keywords = ["pyxpo", "pyxpo-module", "mobile", "android", "ios", "fetch", "http", "networking", "streaming", "abort"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
+    "Operating System :: Android",
+    "Operating System :: iOS",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries",
     "Topic :: Software Development :: User Interfaces",
+    "Typing :: Typed",
 ]
 requires-python = ">=3.9"
 dependencies = ["pyxpo>=0.1.0a2,<0.2"]
 
 [project.urls]
 Homepage = "https://github.com/pyxpo/pyxpo/tree/main/packages/fetch"
+Documentation = "https://github.com/pyxpo/pyxpo/blob/main/packages/fetch/README.md"
+Changelog = "https://github.com/pyxpo/pyxpo/blob/main/packages/fetch/CHANGELOG.md"
+Source = "https://github.com/pyxpo/pyxpo/tree/main/packages/fetch"
 Issues = "https://github.com/pyxpo/pyxpo/issues"
 
 # How `pyxpo build` finds this module: the entry point name is the module name apps list in
