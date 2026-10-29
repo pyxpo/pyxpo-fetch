@@ -1,0 +1,25 @@
+# Tests this package against the latest pyxpo core from main.
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install "pyxpo @ git+https://github.com/pyxpo/pyxpo.git" pytest
+      # --no-deps: core comes from main above; the package may already ask for a core version not yet on PyPI.
+      - run: pip install --no-deps -e .
+      - run: python -m pytest -q
