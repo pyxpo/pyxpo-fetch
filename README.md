@@ -1,5 +1,7 @@
 # pyxpo-fetch
 
+[![CI](https://github.com/pyxpo/pyxpo-fetch/actions/workflows/ci.yml/badge.svg)](https://github.com/pyxpo/pyxpo-fetch/actions/workflows/ci.yml) [![PyPI](https://img.shields.io/pypi/v/pyxpo-fetch)](https://pypi.org/project/pyxpo-fetch/) [![Python](https://img.shields.io/pypi/pyversions/pyxpo-fetch)](https://pypi.org/project/pyxpo-fetch/) [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
 HTTP requests with streaming response bodies for [pyxpo](https://github.com/pyxpo/pyxpo) apps written in Python. It uses
 the platform's own networking, so system proxies, certificates and cookies apply. The API follows
 [expo/fetch](https://docs.expo.dev/versions/latest/sdk/expo/#expofetch-api), which is the WinterCG `fetch`: iOS uses
