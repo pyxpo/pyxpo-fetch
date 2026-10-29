@@ -203,3 +203,108 @@ def test_desktop(server):
         with pytest.raises(F.FetchError):
             await F.fetch("http://127.0.0.1:9/")
     run(go())
+
+
+class _JsError(Exception):
+    pass
+
+
+class _FakeJs:
+    """Just enough of Pyodide's `js` module for the browser backend: fetch, AbortController, Object."""
+
+    def __init__(self, chunks, status=200, fail=None):
+        self.chunks, self.status, self.fail, self.seen = chunks, status, fail, {}
+        test = self
+
+        class Ctl:
+            def __init__(self):
+                self.signal, self.aborted = object(), False
+
+            def abort(self):
+                self.aborted = True
+                test.ctl_aborted = True
+
+        self.AbortController = type("AC", (), {"new": staticmethod(Ctl)})
+        self.Object = type("O", (), {"fromEntries": staticmethod(dict)})
+        self.ctl_aborted = False
+
+    async def fetch(self, url, init):
+        self.seen.update(url=url, init=init)
+        if self.fail:
+            raise _JsError(self.fail)
+        parts = [type("P", (), {"done": False, "value": type("V", (), {"to_bytes": lambda s, c=c: c})()})()
+                 for c in self.chunks] + [type("P", (), {"done": True, "value": None})()]
+
+        class Reader:
+            async def read(self):
+                return parts.pop(0)
+
+        body = type("B", (), {"getReader": lambda s: Reader()})()
+        headers = type("H", (), {"entries": lambda s: iter([("content-type", "application/json")])})()
+        return type("R", (), {"status": self.status, "statusText": "OK", "url": url, "redirected": False,
+                              "body": body, "headers": headers})()
+
+
+class _Init(dict):
+    def __setattr__(self, k, v):
+        self[k] = v
+
+
+@pytest.fixture
+def fake_web(monkeypatch):
+    import sys
+    import types
+
+    def install(js):
+        ffi = types.ModuleType("pyodide.ffi")
+        ffi.JsException = _JsError
+        ffi.to_js = lambda v, dict_converter=None: _Init(v)
+        pyodide = types.ModuleType("pyodide")
+        pyodide.ffi = ffi
+        monkeypatch.setitem(sys.modules, "js", js)
+        monkeypatch.setitem(sys.modules, "pyodide", pyodide)
+        monkeypatch.setitem(sys.modules, "pyodide.ffi", ffi)
+        monkeypatch.setattr(F, "platform", lambda: "web")
+        return js
+    return install
+
+
+def test_web_request_and_json(fake_web):
+    js = fake_web(_FakeJs([b'{"a":', b' 1}']))
+
+    async def go():
+        r = await F.fetch("https://api.test/x", method="POST", headers={"X-Id": "7"}, body='{"q": 1}',
+                          credentials="omit")
+        return r, await r.json()
+    r, data = run(go())
+    assert r.ok and r.status == 200 and r.headers.get("Content-Type") == "application/json"
+    assert data == {"a": 1}
+    init = js.seen["init"]
+    assert init["method"] == "POST" and init["credentials"] == "omit" and init["body"] == b'{"q": 1}'
+    assert ["X-Id", "7"] in init["headers"] and "signal" in init
+
+
+def test_web_network_error(fake_web):
+    fake_web(_FakeJs([], fail="TypeError: Failed to fetch"))
+    with pytest.raises(F.FetchError, match="Failed to fetch"):
+        run(F.fetch("https://api.test/x"))
+
+
+def test_web_abort(fake_web):
+    js = _FakeJs([])
+    c = F.AbortController()
+
+    async def slow_fetch(url, init):
+        c.abort()
+        raise _JsError("AbortError: The user aborted a request.")
+    js.fetch = slow_fetch
+    fake_web(js)
+    with pytest.raises(F.AbortError):
+        run(F.fetch("https://api.test/x", signal=c.signal))
+    assert js.ctl_aborted
+
+
+def test_web_init_shape():
+    h = F.Headers({"A": "1"})
+    assert F._js_init(h, "GET", None, "manual", "include") == {
+        "method": "GET", "headers": [["A", "1"]], "redirect": "manual", "credentials": "include"}

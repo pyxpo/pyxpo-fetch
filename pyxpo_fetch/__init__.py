@@ -15,7 +15,7 @@
     ctl.abort()                                   # the awaiting call raises AbortError
 
 iOS uses `URLSession`, Android uses OkHttp, so system proxies, certificates and cookies apply. The desktop
-uses `urllib` in a worker thread.
+uses `urllib` in a worker thread. The web build uses the browser's `fetch` (CORS rules apply).
 """
 from __future__ import annotations
 
@@ -397,6 +397,72 @@ async def _desktop_fetch(url: str, method: str, headers: Headers, data: Optional
                     Headers(list(resp.headers.items())), final, final != url, body)
 
 
+def _js_init(headers: Headers, method: str, data: Optional[bytes], redirect: str, credentials: str) -> Dict[str, Any]:
+    """The `RequestInit` fields for the browser's `fetch` (kept apart so it is testable without Pyodide)."""
+    init: Dict[str, Any] = {"method": method, "headers": [list(p) for p in headers._items],
+                            "redirect": redirect, "credentials": "include" if credentials == "include" else "omit"}
+    if data is not None:
+        init["body"] = data
+    return init
+
+
+async def _web_fetch(url: str, method: str, headers: Headers, data: Optional[bytes], redirect: str,
+                     credentials: str, timeout: Optional[float], signal: Optional[AbortSignal]) -> Response:
+    import js  # type: ignore[import-not-found]  # Pyodide only
+    from pyodide.ffi import JsException, to_js  # type: ignore[import-not-found]
+
+    ctl = js.AbortController.new()
+    why = {"reason": None}
+
+    def abort(reason: str) -> None:
+        why["reason"] = reason
+        ctl.abort()
+
+    off = signal._on_abort(lambda: abort("aborted")) if signal is not None else None
+    timer = asyncio.get_running_loop().call_later(timeout, abort, "timeout") if timeout else None
+    init = to_js(_js_init(headers, method, data, redirect, credentials), dict_converter=js.Object.fromEntries)
+    init.signal = ctl.signal
+
+    def fail(e: BaseException) -> BaseException:
+        if why["reason"] == "aborted":
+            return AbortError("The operation was aborted.")
+        if why["reason"] == "timeout":
+            return FetchError("the request timed out after %ss" % timeout)
+        return FetchError(str(e))
+
+    try:
+        resp = await js.fetch(url, init)
+    except JsException as e:
+        if timer:
+            timer.cancel()
+        if off:
+            off()
+        raise fail(e) from None
+    body = _Body(lambda: abort("aborted"))
+
+    async def pump() -> None:
+        error: Optional[BaseException] = None
+        try:
+            reader = resp.body.getReader() if resp.body else None
+            while reader is not None:
+                part = await reader.read()
+                if part.done:
+                    break
+                body.push(part.value.to_bytes())
+        except JsException as e:
+            error = fail(e)
+        finally:
+            if timer:
+                timer.cancel()
+            if off:
+                off()
+        body.end(error)
+
+    asyncio.ensure_future(pump())
+    h = Headers([[k, v] for k, v in resp.headers.entries()])
+    return Response(int(resp.status), str(resp.statusText or ""), h, str(resp.url or url), bool(resp.redirected), body)
+
+
 async def fetch(url: str, *, method: str = "GET", headers: HeadersInit = None, body: Union[str, bytes, None] = None,
                 redirect: str = "follow", credentials: str = "include", signal: Optional[AbortSignal] = None,
                 timeout: Optional[float] = None) -> Response:
@@ -420,7 +486,10 @@ async def fetch(url: str, *, method: str = "GET", headers: HeadersInit = None, b
         raise ValueError("a %s request cannot have a body" % method)
     if signal is not None:
         signal.throw_if_aborted()
-    if platform() == "desktop":
+    p = platform()
+    if p == "web":
+        return await _web_fetch(url, method, h, data, redirect, credentials, timeout, signal)
+    if p == "desktop":
         return await _desktop_fetch(url, method, h, data, redirect, credentials, timeout, signal)
     return await _native_fetch(url, method, h, data, redirect, credentials, timeout, signal)
 

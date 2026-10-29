@@ -49,7 +49,7 @@ if resp.ok:
 | Android, API 24+ | OkHttp 4.12. Adds the `INTERNET` permission. Cookies live in memory while the app runs. |
 | iOS 15+ | `URLSession`. Cookies use the shared cookie store. |
 | Desktop window | `urllib` in a worker thread, with an in-memory cookie jar. |
-| Web page | There is no browser backend. The desktop code path cannot open sockets in a browser, so requests fail with `FetchError`. Not supported yet. |
+| Web page | The browser's own `fetch`, streamed with a `ReadableStream` reader. CORS applies: the server must allow your page's origin. `redirect="manual"` gives an opaque response, as in the browser. |
 
 Requires Python 3.9+ and `pyxpo>=0.1.0a1`.
 
@@ -179,8 +179,8 @@ None.
 ## Web and desktop
 
 On the desktop window requests use `urllib` on a worker thread, with an in-memory cookie jar, so the UI stays smooth. The
-web page has no backend yet (see the table above). If you need web support today, wrap the call and offer a
-fallback.
+web page calls the browser's `fetch`: cookies follow the browser's rules, and a server on another origin must send
+CORS headers for your page (and allow any custom headers you send). A CORS refusal raises `FetchError`.
 
 ## Recipe: a search box
 
@@ -224,7 +224,7 @@ def Search():
 - [ ] You use `https://`, and secrets are in headers (from `pyxpo-secure-store`), not in URLs.
 - [ ] Streaming servers send `nosniff` or an event-stream type so iOS delivers chunks at once.
 - [ ] You tested in airplane mode.
-- [ ] The web build has a fallback, since there is no browser backend yet.
+- [ ] For the web build, the API allows your site's origin and custom headers (CORS).
 
 ## Testing
 
@@ -278,7 +278,7 @@ def test_validation():
 | Plain `http://` fails on a device | Use `https://`, or a local host allowed by the app. |
 | Streaming chunks arrive late on iOS | Add `X-Content-Type-Options: nosniff` or `Content-Type: text/event-stream` on the server. |
 | `RuntimeError: already read` | A body can be read once. Store the text. |
-| Works on a phone, `FetchError` in the browser | There is no web backend yet. |
+| Works on a phone, `FetchError` in the browser | CORS: the server does not allow your page's origin or one of your headers. Check the browser console. |
 | `ModuleNotLinkedError` | Add `"fetch"` to `modules` and rebuild. |
 
 ## FAQ
@@ -290,7 +290,7 @@ desktop. Use `"omit"` to turn them off.
 
 **Can I upload a file?** Send its `bytes` as `body`.
 
-**Is there `fetch` on the web page?** Not yet.
+**Is there `fetch` on the web page?** Yes, the browser's own, with the same API.
 
 ## API reference
 
