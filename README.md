@@ -6,7 +6,7 @@ the platform's own networking, so system proxies, certificates and cookies apply
 `URLSession` and Android uses OkHttp.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/pyxpo/pyxpo/main/packages/fetch/docs/images/hero.png" width="820" alt="A GET request to example.com on iOS, with status, content type and body size. The Android emulator in the screenshot had no internet.">
+  <img src="https://raw.githubusercontent.com/pyxpo/pyxpo-fetch/main/docs/images/hero.png" width="820" alt="A GET request to example.com on iOS, with status, content type and body size. The Android emulator in the screenshot had no internet.">
 </p>
 
 ```python
@@ -95,7 +95,7 @@ def Hello():
 > builds a coroutine that nobody awaits.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/pyxpo/pyxpo/main/packages/fetch/docs/images/response.png" width="720" alt="The iOS result of fetch(): status 200, content type, body size, first line and time">
+  <img src="https://raw.githubusercontent.com/pyxpo/pyxpo-fetch/main/docs/images/response.png" width="720" alt="The iOS result of fetch(): status 200, content type, body size, first line and time">
 </p>
 
 The screenshot is from iOS. The Android emulator used for the screenshots had no internet access, so its request ended in
