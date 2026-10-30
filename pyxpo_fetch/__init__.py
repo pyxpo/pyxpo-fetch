@@ -27,7 +27,7 @@ from typing import Any, AsyncIterator, Callable, Dict, Iterable, Iterator, List,
 
 from pyxpo.module_api import call, on_event, platform, require_linked
 
-__version__ = "0.1.0a1"
+__version__ = "0.1.0a2"
 
 _METHODS_WITHOUT_BODY = ("GET", "HEAD")
 _REDIRECTS = ("follow", "manual", "error")

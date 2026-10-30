@@ -1,7 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.1.0a2 (2026-10-30)
 
+- Now needs pyxpo 0.1.0a4 or newer, the first release with the web target.
 - New: `create_client`, an axios-style HTTP client on top of `fetch`. It has a base URL, default headers and params,
   request and response interceptors (sync or async), parsed JSON in `res.data`, `HTTPError` for error statuses,
   `TimeoutError` apart from `AbortError`, retries with backoff and `Retry-After`, form bodies, response types,
