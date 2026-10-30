@@ -27,6 +27,9 @@ if resp.ok:
 - **Timeouts, redirects, cookies:** `timeout`, `redirect="follow" | "manual" | "error"`, `credentials="include" | "omit"`.
 - **Honest errors:** HTTP 404 and 500 do not raise. Network failures raise `FetchError`.
 - **Case-insensitive `Headers`** that joins repeated values as the web does.
+- **HTTP client, axios style:** `create_client(base_url=, headers=, timeout=, retry=)` with request and response
+  interceptors, parsed JSON in `res.data`, `HTTPError` on error statuses, retries with backoff and `Retry-After`,
+  query `params`, form bodies, download progress and `extend()` for derived clients.
 - **Typed:** ships `py.typed`.
 
 ## Contents
@@ -38,6 +41,7 @@ if resp.ok:
 | Streaming a response | [Streaming](#streaming) |
 | Cancelling or timing out | [Abort and timeouts](#abort-and-timeouts) |
 | Handling failures | [Errors](#errors) |
+| Wanting interceptors, retries, a base URL | [HTTP client](#http-client) |
 | Exact signatures | [API reference](#api-reference) |
 | Seeing it in a real app | [Recipe: a search box](#recipe-a-search-box) |
 | Stuck | [Testing](#testing) · [Troubleshooting](#troubleshooting) · [FAQ](#faq) |
@@ -182,6 +186,56 @@ On the desktop window requests use `urllib` on a worker thread, with an in-memor
 web page calls the browser's `fetch`: cookies follow the browser's rules, and a server on another origin must send
 CORS headers for your page (and allow any custom headers you send). A CORS refusal raises `FetchError`.
 
+## HTTP client
+
+`fetch` stays close to the web. For an app talking to one API, `create_client` adds what axios gives you: shared
+defaults, interceptors, parsed bodies, errors for error statuses, retries and a timeout per request.
+
+```python
+from pyxpo_fetch import HTTPError, Retry, TimeoutError, create_client
+
+api = create_client(
+    base_url="https://api.example.com/v1",
+    headers={"Accept": "application/json"},
+    timeout=15,                       # seconds, per attempt
+    retry=Retry(2, backoff=0.3),      # GET/PUT/DELETE on network errors, timeouts, 408/429/502/503/504
+)
+
+@api.interceptors.request.use
+def sign(config):
+    config.headers.set("Authorization", "Bearer " + session.token)
+
+async def refresh_once(error):
+    if isinstance(error, HTTPError) and error.status == 401 and not error.config.meta.get("refreshed"):
+        await session.refresh()
+        error.config.meta["refreshed"] = True
+        return await api.request(error.config)    # runs the interceptors again, so it carries the new token
+    raise error
+
+api.interceptors.response.use(None, refresh_once)
+
+res = await api.get("/posts", params={"page": 2, "draft": False, "tag": ["a", "b"]})
+res.data            # parsed JSON (text when the body is not JSON)
+res.status, res.headers, res.config
+
+await api.post("/posts", {"title": "Hello"})            # JSON body, Content-Type set for you
+await api.post("/login", form={"user": "ana"})          # form body
+await api.get("/export", response_type="bytes", on_download_progress=lambda got, total: print(got, total))
+```
+
+- **Interceptors** run in the order you add them and may be `async`. A request interceptor gets the `RequestConfig`;
+  returning None keeps it. A response interceptor gets the `ClientResponse`. Its error side gets the exception: return
+  a response to recover, or raise. `use()` works as a decorator; `add()` returns an id; `eject(id_or_function)`.
+- **Errors:** an error status raises `HTTPError` with `.status`, `.data`, `.response` and `.config`. Pass
+  `raise_for_status=False` (or a function of the status) to get the response instead. Running past `timeout` raises
+  `TimeoutError`; your own `signal` raises `AbortError`; no network raises `FetchError`. All three are `FetchError`s.
+- **`response_type`:** `"auto"` (JSON when it looks like JSON), `"json"`, `"text"`, `"bytes"` or `"stream"`
+  (`res.data` is then the body's async iterator).
+- **`config.meta`** is a free dict for your own flags, such as "already retried".
+- **`api.extend(headers=..., timeout=...)`** makes a new client with merged defaults and a copy of the interceptors.
+- **`transport=`** swaps the function that sends the request. Tests pass a fake with the `fetch` signature.
+- **`gather_settled(*calls)`** runs requests together and returns each response or error.
+
 ## Recipe: a search box
 
 Look up what the user types in a JSON API, with a timeout and clear messages when it fails.
@@ -315,6 +369,11 @@ Returns a `Response` once the headers arrive.
 | `AbortController` | `signal`, `abort(reason=None)`. |
 | `AbortSignal` | `aborted`, `reason`, `throw_if_aborted()`. |
 | `FetchError`, `AbortError` | Network failure, and cancellation (a `FetchError`). |
+| `create_client(**defaults)` / `Client` | `base_url`, `headers`, `params`, `timeout`, `retry`, `raise_for_status`, `response_type`, `redirect`, `credentials`, `transport`. Methods `request`, `get`, `head`, `options`, `delete`, `post`, `put`, `patch`, `extend`, `build`, and `interceptors.request` / `interceptors.response`. |
+| `RequestConfig` | `method`, `url`, `base_url`, `params`, `headers`, `json`, `data`, `form`, `timeout`, `signal`, `response_type`, `retry`, `raise_for_status`, `on_download_progress`, `meta`, `attempt`, `full_url()`. |
+| `ClientResponse` | `data`, `status`, `status_text`, `ok`, `headers`, `url`, `config`, `raw`, `json()`. |
+| `Retry(attempts=2, *, statuses, methods, backoff, max_backoff, on_timeout, when)` | Retry policy; `Retry-After` wins over backoff. |
+| `HTTPError`, `TimeoutError` | Error status (with `.response`, `.status`, `.data`, `.config`), and a timeout. Both `FetchError`s. |
 
 ## License
 

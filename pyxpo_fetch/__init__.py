@@ -495,3 +495,9 @@ async def fetch(url: str, *, method: str = "GET", headers: HeadersInit = None, b
 
 
 __all__ = ["fetch", "Headers", "Response", "AbortController", "AbortSignal", "FetchError", "AbortError"]
+
+from .client import (Client, ClientResponse, HTTPError, RequestConfig, Retry, TimeoutError,  # noqa: E402
+                     create_client, encode_params, gather_settled)
+
+__all__ += ["Client", "ClientResponse", "HTTPError", "RequestConfig", "Retry", "TimeoutError", "create_client",
+            "encode_params", "gather_settled"]
